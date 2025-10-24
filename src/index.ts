@@ -68,6 +68,30 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Search query to match against resource names',
         },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 50, max: 200)',
+          default: 50,
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'search_files',
+    description: 'Search for files by filename across all enrolled courses. Returns file details including download URLs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query to match against filenames',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 50, max: 200)',
+          default: 50,
+        },
       },
       required: ['query'],
     },
@@ -84,6 +108,24 @@ const tools: Tool[] = [
         },
       },
       required: ['courseId'],
+    },
+  },
+  {
+    name: 'get_module_files',
+    description: 'Get detailed file information for a specific module, including authenticated download URLs',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        courseId: {
+          type: 'number',
+          description: 'The ID of the course',
+        },
+        moduleId: {
+          type: 'number',
+          description: 'The ID of the module',
+        },
+      },
+      required: ['courseId', 'moduleId'],
     },
   },
 ];
@@ -113,7 +155,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'list_courses': {
-        const courses = await moodleClient.getUserCourses();
+        const courses = await moodleClient.getUserCoursesSimplified();
         return {
           content: [
             {
@@ -126,7 +168,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_course_contents': {
         const { courseId } = args as { courseId: number };
-        const contents = await moodleClient.getCourseContents(courseId);
+        const contents = await moodleClient.getCourseContentsSimplified(courseId);
         return {
           content: [
             {
@@ -138,13 +180,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'search_resources': {
-        const { query } = args as { query: string };
-        const results = await moodleClient.searchResources(query);
+        const { query, limit = 50 } = args as { query: string; limit?: number };
+        const maxLimit = Math.min(limit, 200); // Cap at 200 to avoid token limits
+        const results = await moodleClient.searchResources(query, maxLimit);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(results, null, 2),
+              text: JSON.stringify({
+                query,
+                limit: maxLimit,
+                count: results.length,
+                results,
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'search_files': {
+        const { query, limit = 50 } = args as { query: string; limit?: number };
+        const maxLimit = Math.min(limit, 200); // Cap at 200 to avoid token limits
+        const results = await moodleClient.searchFiles(query, maxLimit);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                query,
+                limit: maxLimit,
+                count: results.length,
+                files: results,
+                note: 'Use the download_file tool with fileurl to get authenticated download URLs',
+              }, null, 2),
             },
           ],
         };
@@ -157,7 +225,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(documents, null, 2),
+              text: JSON.stringify({
+                sectionName,
+                moduleId: targetModule.id,
+                moduleName: targetModule.name,
+                moduleType: targetModule.modname,
+                filesCount: fileDetails.length,
+                files: fileDetails,
+                note: 'Use the download_file tool with fileurl to get authenticated download URLs',
+              }, null, 2),
             },
           ],
         };

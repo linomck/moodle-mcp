@@ -226,12 +226,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify({
-                sectionName,
-                moduleId: targetModule.id,
-                moduleName: targetModule.name,
-                moduleType: targetModule.modname,
-                filesCount: fileDetails.length,
-                files: fileDetails,
+                courseId,
+                documentsCount: documents.length,
+                documents,
                 note: 'Use the download_file tool with fileurl to get authenticated download URLs',
               }, null, 2),
             },

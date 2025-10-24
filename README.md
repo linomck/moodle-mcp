@@ -110,6 +110,29 @@ See [USAGE.md](USAGE.md) for detailed documentation of all available tools:
 4. **search_resources** - Search for resources by name
 5. **download_file** - Download file content as base64
 
+## Testing
+
+You can test the MCP server without connecting to an AI assistant. See [TESTING.md](TESTING.md) for detailed instructions.
+
+### Quick Test
+
+```bash
+# 1. Create .env file with your Moodle credentials
+cp .env.example .env
+# Edit .env with your credentials
+
+# 2. Run the test suite
+npm test
+```
+
+This will test all functionality including authentication, course listing, content retrieval, search, and file downloads.
+
+### Other Testing Methods
+
+- **Standalone Test Script** - Direct API testing without MCP (see TESTING.md)
+- **MCP Inspector** - Interactive web-based testing of MCP tools
+- **Manual cURL** - Test Moodle API endpoints directly
+
 ## Development
 
 ### Project Structure
@@ -119,11 +142,15 @@ moodle-mcp/
 ├── src/
 │   ├── index.ts          # MCP server implementation
 │   ├── moodle-client.ts  # Moodle API client
-│   └── types.ts          # TypeScript type definitions
+│   ├── types.ts          # TypeScript type definitions
+│   └── test.ts           # Standalone test script
 ├── dist/                 # Compiled JavaScript (generated)
+├── .env.example          # Environment variables template
 ├── package.json
 ├── tsconfig.json
-└── README.md
+├── README.md             # Main documentation
+├── USAGE.md              # Tool usage guide
+└── TESTING.md            # Testing guide
 ```
 
 ### Building

@@ -11,6 +11,8 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "dev": "node --loader ts-node/esm src/index.ts",
+    "test": "npm run build && node dist/test.js",
+    "test:dev": "node --loader ts-node/esm src/test.ts",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -23,7 +25,8 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "axios": "^1.7.9"
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

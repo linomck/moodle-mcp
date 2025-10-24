@@ -142,6 +142,30 @@ export class MoodleClient {
   }
 
   /**
+   * Get simplified course list (reduces token usage)
+   */
+  async getUserCoursesSimplified(): Promise<Array<{
+    id: number;
+    shortname: string;
+    fullname: string;
+    visible?: number;
+    progress?: number;
+    startdate?: number;
+    enddate?: number;
+  }>> {
+    const courses = await this.getUserCourses();
+    return courses.map(course => ({
+      id: course.id,
+      shortname: course.shortname,
+      fullname: course.fullname,
+      visible: course.visible,
+      progress: course.progress,
+      startdate: course.startdate,
+      enddate: course.enddate,
+    }));
+  }
+
+  /**
    * Get all available courses
    */
   async getAllCourses(): Promise<MoodleCourse[]> {
@@ -158,6 +182,42 @@ export class MoodleClient {
   }
 
   /**
+   * Get simplified course contents (reduces token usage by removing large fields)
+   */
+  async getCourseContentsSimplified(courseId: number): Promise<Array<{
+    id: number;
+    name: string;
+    visible?: number;
+    modules: Array<{
+      id: number;
+      name: string;
+      modname: string;
+      url: string;
+      visible?: number;
+      hasContents: boolean;
+      contentsCount?: number;
+      contentsSize?: number;
+    }>;
+  }>> {
+    const sections = await this.getCourseContents(courseId);
+    return sections.map(section => ({
+      id: section.id,
+      name: section.name,
+      visible: section.visible,
+      modules: section.modules.map(module => ({
+        id: module.id,
+        name: module.name,
+        modname: module.modname,
+        url: module.url,
+        visible: module.visible,
+        hasContents: !!module.contents && module.contents.length > 0,
+        contentsCount: module.contentsinfo?.filescount,
+        contentsSize: module.contentsinfo?.filessize,
+      })),
+    }));
+  }
+
+  /**
    * Get current user ID
    */
   private async getCurrentUserId(): Promise<number> {
@@ -166,7 +226,54 @@ export class MoodleClient {
   }
 
   /**
-   * Download file content from Moodle
+   * Get file info with authenticated download URL (avoids token limit issues with base64)
+   */
+  async getFileInfo(fileUrl: string): Promise<{
+    filename: string;
+    size: number;
+    mimetype: string;
+    authenticatedUrl: string;
+  }> {
+    await this.ensureAuthenticated();
+
+    try {
+      // Add token to file URL
+      const url = new URL(fileUrl);
+      url.searchParams.set('token', this.token!);
+
+      // Get file metadata with HEAD request
+      const response = await this.axios.head(url.toString());
+
+      // Extract filename from URL or Content-Disposition header
+      let filename = 'unknown';
+      const contentDisposition = response.headers['content-disposition'];
+      if (contentDisposition) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+      if (filename === 'unknown') {
+        const urlParts = fileUrl.split('/');
+        filename = decodeURIComponent(urlParts[urlParts.length - 1] || 'file');
+      }
+
+      return {
+        filename,
+        size: parseInt(response.headers['content-length'] || '0', 10),
+        mimetype: response.headers['content-type'] || 'application/octet-stream',
+        authenticatedUrl: url.toString(),
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to get file info: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Download file content from Moodle (for backward compatibility, but use getFileInfo for large files)
    */
   async downloadFile(fileUrl: string): Promise<Buffer> {
     await this.ensureAuthenticated();
@@ -190,9 +297,86 @@ export class MoodleClient {
   }
 
   /**
+   * Search for files by filename across all courses
+   */
+  async searchFiles(query: string, limit: number = 50): Promise<Array<{
+    courseId: number;
+    courseName: string;
+    sectionName: string;
+    moduleName: string;
+    moduleId: number;
+    filename: string;
+    filesize: number;
+    fileurl: string;
+    mimetype?: string;
+  }>> {
+    const courses = await this.getUserCourses();
+    const results: Array<{
+      courseId: number;
+      courseName: string;
+      sectionName: string;
+      moduleName: string;
+      moduleId: number;
+      filename: string;
+      filesize: number;
+      fileurl: string;
+      mimetype?: string;
+    }> = [];
+
+    const searchLower = query.toLowerCase();
+
+    for (const course of courses) {
+      if (results.length >= limit) {
+        break;
+      }
+
+      try {
+        const contents = await this.getCourseContents(course.id);
+
+        for (const section of contents) {
+          for (const module of section.modules) {
+            if (module.contents && module.contents.length > 0) {
+              for (const content of module.contents) {
+                if (content.type === 'file' && content.filename.toLowerCase().includes(searchLower)) {
+                  results.push({
+                    courseId: course.id,
+                    courseName: course.fullname,
+                    sectionName: section.name,
+                    moduleName: module.name,
+                    moduleId: module.id,
+                    filename: content.filename,
+                    filesize: content.filesize,
+                    fileurl: content.fileurl,
+                    mimetype: content.mimetype,
+                  });
+
+                  if (results.length >= limit) {
+                    break;
+                  }
+                }
+              }
+            }
+            if (results.length >= limit) {
+              break;
+            }
+          }
+          if (results.length >= limit) {
+            break;
+          }
+        }
+      } catch (error) {
+        // Skip courses we can't access
+        continue;
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Search for resources by name across all courses
    */
-  async searchResources(query: string): Promise<Array<{
+  async searchResources(query: string, limit: number = 50): Promise<Array<{
     courseId: number;
     courseName: string;
     moduleName: string;
@@ -211,6 +395,10 @@ export class MoodleClient {
     const searchLower = query.toLowerCase();
 
     for (const course of courses) {
+      if (results.length >= limit) {
+        break;
+      }
+
       try {
         const contents = await this.getCourseContents(course.id);
 
@@ -224,7 +412,14 @@ export class MoodleClient {
                 moduleUrl: module.url,
                 type: module.modname,
               });
+
+              if (results.length >= limit) {
+                break;
+              }
             }
+          }
+          if (results.length >= limit) {
+            break;
           }
         }
       } catch (error) {

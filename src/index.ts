@@ -60,7 +60,7 @@ const tools: Tool[] = [
   },
   {
     name: 'search_resources',
-    description: 'Search for resources by name across all enrolled courses',
+    description: 'Search for resources by name across all enrolled courses. Returns up to a specified limit to avoid token limits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,13 +68,37 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Search query to match against resource names',
         },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 50, max: 200)',
+          default: 50,
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'search_files',
+    description: 'Search for files by filename across all enrolled courses. Returns file details including download URLs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query to match against filenames',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 50, max: 200)',
+          default: 50,
+        },
       },
       required: ['query'],
     },
   },
   {
     name: 'download_file',
-    description: 'Download a file from Moodle by its URL. Returns the file content as base64.',
+    description: 'Get an authenticated download URL for a file from Moodle. Returns metadata and URL that can be used to download the file.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -98,6 +122,24 @@ const tools: Tool[] = [
         },
       },
       required: ['courseId'],
+    },
+  },
+  {
+    name: 'get_module_files',
+    description: 'Get detailed file information for a specific module, including authenticated download URLs',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        courseId: {
+          type: 'number',
+          description: 'The ID of the course',
+        },
+        moduleId: {
+          type: 'number',
+          description: 'The ID of the module',
+        },
+      },
+      required: ['courseId', 'moduleId'],
     },
   },
 ];
@@ -127,7 +169,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'list_courses': {
-        const courses = await moodleClient.getUserCourses();
+        const courses = await moodleClient.getUserCoursesSimplified();
         return {
           content: [
             {
@@ -140,7 +182,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_course_contents': {
         const { courseId } = args as { courseId: number };
-        const contents = await moodleClient.getCourseContents(courseId);
+        const contents = await moodleClient.getCourseContentsSimplified(courseId);
         return {
           content: [
             {
@@ -152,13 +194,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'search_resources': {
-        const { query } = args as { query: string };
-        const results = await moodleClient.searchResources(query);
+        const { query, limit = 50 } = args as { query: string; limit?: number };
+        const maxLimit = Math.min(limit, 200); // Cap at 200 to avoid token limits
+        const results = await moodleClient.searchResources(query, maxLimit);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(results, null, 2),
+              text: JSON.stringify({
+                query,
+                limit: maxLimit,
+                count: results.length,
+                results,
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'search_files': {
+        const { query, limit = 50 } = args as { query: string; limit?: number };
+        const maxLimit = Math.min(limit, 200); // Cap at 200 to avoid token limits
+        const results = await moodleClient.searchFiles(query, maxLimit);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                query,
+                limit: maxLimit,
+                count: results.length,
+                files: results,
+                note: 'Use the download_file tool with fileurl to get authenticated download URLs',
+              }, null, 2),
             },
           ],
         };
@@ -166,12 +234,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'download_file': {
         const { fileUrl } = args as { fileUrl: string };
-        const fileBuffer = await moodleClient.downloadFile(fileUrl);
+        const fileInfo = await moodleClient.getFileInfo(fileUrl);
         return {
           content: [
             {
               type: 'text',
-              text: `File downloaded successfully. Size: ${fileBuffer.length} bytes\nBase64 content:\n${fileBuffer.toString('base64')}`,
+              text: JSON.stringify({
+                message: 'File info retrieved successfully. Use the authenticatedUrl to download the file.',
+                filename: fileInfo.filename,
+                size: fileInfo.size,
+                mimetype: fileInfo.mimetype,
+                authenticatedUrl: fileInfo.authenticatedUrl,
+                note: 'The authenticated URL includes the token and can be used to download the file directly.'
+              }, null, 2),
             },
           ],
         };
@@ -181,17 +256,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { courseId } = args as { courseId: number };
         const contents = await moodleClient.getCourseContents(courseId);
 
-        // Extract all documents/files
+        // Extract all documents/files with essential info only
         const documents: Array<{
           sectionName: string;
           moduleName: string;
           moduleType: string;
+          moduleId: number;
           files: Array<{
             filename: string;
             filesize: number;
             fileurl: string;
             mimetype?: string;
-            timemodified: number;
           }>;
         }> = [];
 
@@ -202,23 +277,96 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 sectionName: section.name,
                 moduleName: module.name,
                 moduleType: module.modname,
-                files: module.contents.map((content) => ({
-                  filename: content.filename,
-                  filesize: content.filesize,
-                  fileurl: content.fileurl,
-                  mimetype: content.mimetype,
-                  timemodified: content.timemodified,
-                })),
+                moduleId: module.id,
+                files: module.contents
+                  .filter(content => content.type === 'file') // Only include actual files
+                  .map((content) => ({
+                    filename: content.filename,
+                    filesize: content.filesize,
+                    fileurl: content.fileurl,
+                    mimetype: content.mimetype,
+                  })),
               });
             }
           }
         }
 
+        // Filter out modules with no files
+        const documentsWithFiles = documents.filter(doc => doc.files.length > 0);
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(documents, null, 2),
+              text: JSON.stringify({
+                courseId,
+                totalModulesWithFiles: documentsWithFiles.length,
+                documents: documentsWithFiles,
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_module_files': {
+        const { courseId, moduleId } = args as { courseId: number; moduleId: number };
+        const contents = await moodleClient.getCourseContents(courseId);
+
+        // Find the specific module
+        let targetModule = null;
+        let sectionName = '';
+
+        for (const section of contents) {
+          const module = section.modules.find(m => m.id === moduleId);
+          if (module) {
+            targetModule = module;
+            sectionName = section.name;
+            break;
+          }
+        }
+
+        if (!targetModule) {
+          throw new Error(`Module ${moduleId} not found in course ${courseId}`);
+        }
+
+        if (!targetModule.contents || targetModule.contents.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  message: 'Module has no files',
+                  moduleId,
+                  moduleName: targetModule.name,
+                }, null, 2),
+              },
+            ],
+          };
+        }
+
+        // Get file info for each file with authenticated URLs
+        const fileDetails = targetModule.contents
+          .filter(content => content.type === 'file')
+          .map(content => ({
+            filename: content.filename,
+            filesize: content.filesize,
+            fileurl: content.fileurl,
+            mimetype: content.mimetype,
+          }));
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                sectionName,
+                moduleId: targetModule.id,
+                moduleName: targetModule.name,
+                moduleType: targetModule.modname,
+                filesCount: fileDetails.length,
+                files: fileDetails,
+                note: 'Use the download_file tool with fileurl to get authenticated download URLs',
+              }, null, 2),
             },
           ],
         };

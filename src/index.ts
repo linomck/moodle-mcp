@@ -60,7 +60,7 @@ const tools: Tool[] = [
   },
   {
     name: 'search_resources',
-    description: 'Search for resources by name across all enrolled courses. Returns up to a specified limit to avoid token limits.',
+    description: 'Search for resources by name across all enrolled courses. Returns results with download URLs that can be used directly.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -94,20 +94,6 @@ const tools: Tool[] = [
         },
       },
       required: ['query'],
-    },
-  },
-  {
-    name: 'download_file',
-    description: 'Get an authenticated download URL for a file from Moodle. Returns metadata and URL that can be used to download the file.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        fileUrl: {
-          type: 'string',
-          description: 'The URL of the file to download (from module contents)',
-        },
-      },
-      required: ['fileUrl'],
     },
   },
   {
@@ -232,128 +218,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'download_file': {
-        const { fileUrl } = args as { fileUrl: string };
-        const fileInfo = await moodleClient.getFileInfo(fileUrl);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                message: 'File info retrieved successfully. Use the authenticatedUrl to download the file.',
-                filename: fileInfo.filename,
-                size: fileInfo.size,
-                mimetype: fileInfo.mimetype,
-                authenticatedUrl: fileInfo.authenticatedUrl,
-                note: 'The authenticated URL includes the token and can be used to download the file directly.'
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
       case 'get_course_documents': {
         const { courseId } = args as { courseId: number };
-        const contents = await moodleClient.getCourseContents(courseId);
-
-        // Extract all documents/files with essential info only
-        const documents: Array<{
-          sectionName: string;
-          moduleName: string;
-          moduleType: string;
-          moduleId: number;
-          files: Array<{
-            filename: string;
-            filesize: number;
-            fileurl: string;
-            mimetype?: string;
-          }>;
-        }> = [];
-
-        for (const section of contents) {
-          for (const module of section.modules) {
-            if (module.contents && module.contents.length > 0) {
-              documents.push({
-                sectionName: section.name,
-                moduleName: module.name,
-                moduleType: module.modname,
-                moduleId: module.id,
-                files: module.contents
-                  .filter(content => content.type === 'file') // Only include actual files
-                  .map((content) => ({
-                    filename: content.filename,
-                    filesize: content.filesize,
-                    fileurl: content.fileurl,
-                    mimetype: content.mimetype,
-                  })),
-              });
-            }
-          }
-        }
-
-        // Filter out modules with no files
-        const documentsWithFiles = documents.filter(doc => doc.files.length > 0);
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                courseId,
-                totalModulesWithFiles: documentsWithFiles.length,
-                documents: documentsWithFiles,
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'get_module_files': {
-        const { courseId, moduleId } = args as { courseId: number; moduleId: number };
-        const contents = await moodleClient.getCourseContents(courseId);
-
-        // Find the specific module
-        let targetModule = null;
-        let sectionName = '';
-
-        for (const section of contents) {
-          const module = section.modules.find(m => m.id === moduleId);
-          if (module) {
-            targetModule = module;
-            sectionName = section.name;
-            break;
-          }
-        }
-
-        if (!targetModule) {
-          throw new Error(`Module ${moduleId} not found in course ${courseId}`);
-        }
-
-        if (!targetModule.contents || targetModule.contents.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  message: 'Module has no files',
-                  moduleId,
-                  moduleName: targetModule.name,
-                }, null, 2),
-              },
-            ],
-          };
-        }
-
-        // Get file info for each file with authenticated URLs
-        const fileDetails = targetModule.contents
-          .filter(content => content.type === 'file')
-          .map(content => ({
-            filename: content.filename,
-            filesize: content.filesize,
-            fileurl: content.fileurl,
-            mimetype: content.mimetype,
-          }));
-
+        const documents = await moodleClient.getCourseDocuments(courseId);
         return {
           content: [
             {

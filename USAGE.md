@@ -69,7 +69,7 @@ Retrieves all contents (sections, modules, resources) of a specific course.
 
 ### 3. get_course_documents
 
-Gets all documents and files from a specific course with their download URLs.
+Gets all documents and files from a specific course with their download URLs that can be used directly for downloading.
 
 **Parameters:**
 - `courseId` (number, required): The ID of the course
@@ -92,7 +92,7 @@ Gets all documents and files from a specific course with their download URLs.
       {
         "filename": "lecture1.pdf",
         "filesize": 1048576,
-        "fileurl": "https://moodle.example.com/pluginfile.php/...",
+        "downloadUrl": "https://moodle.example.com/pluginfile.php/...?token=abc123",
         "mimetype": "application/pdf",
         "timemodified": 1634567890
       }
@@ -101,9 +101,11 @@ Gets all documents and files from a specific course with their download URLs.
 ]
 ```
 
+**Note:** The `downloadUrl` includes the authentication token and can be used directly for downloading files.
+
 ### 4. search_resources
 
-Searches for resources by name across all enrolled courses.
+Searches for resources by name across all enrolled courses. Returns results with download URLs included for resources that have files.
 
 **Parameters:**
 - `query` (string, required): Search query to match against resource names
@@ -111,7 +113,7 @@ Searches for resources by name across all enrolled courses.
 **Example Request:**
 ```json
 {
-  "query": "assignment"
+  "query": "lecture"
 }
 ```
 
@@ -121,52 +123,43 @@ Searches for resources by name across all enrolled courses.
   {
     "courseId": 2,
     "courseName": "Introduction to Computer Science",
-    "moduleName": "Assignment 1: Variables",
-    "moduleUrl": "https://moodle.example.com/mod/assign/view.php?id=456",
-    "type": "assign"
+    "moduleName": "Lecture 1 Notes",
+    "moduleUrl": "https://moodle.example.com/mod/resource/view.php?id=456",
+    "type": "resource",
+    "files": [
+      {
+        "filename": "lecture1.pdf",
+        "filesize": 524288,
+        "downloadUrl": "https://moodle.example.com/pluginfile.php/...?token=abc123",
+        "mimetype": "application/pdf",
+        "timemodified": 1634567890
+      }
+    ]
   }
 ]
 ```
 
-### 5. download_file
-
-Downloads a file from Moodle by its URL and returns the content as base64.
-
-**Parameters:**
-- `fileUrl` (string, required): The URL of the file to download (from module contents)
-
-**Example Request:**
-```json
-{
-  "fileUrl": "https://moodle.example.com/pluginfile.php/123/mod_resource/content/1/document.pdf"
-}
-```
-
-**Example Response:**
-```
-File downloaded successfully. Size: 524288 bytes
-Base64 content:
-JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRv...
-```
+**Note:** The `files` array is only present for resources that have downloadable content. The `downloadUrl` includes the authentication token and can be used directly.
 
 ## Typical Workflows
 
 ### Workflow 1: Browse and Download Course Materials
 
 1. List all your courses using `list_courses`
-2. Get course contents using `get_course_contents` with a course ID
-3. Download specific files using `download_file` with the file URL from step 2
+2. Get course documents using `get_course_documents` with a course ID
+3. Use the `downloadUrl` from the results to download files directly
 
-### Workflow 2: Find and Access Assignments
+### Workflow 2: Search for Specific Resources
 
-1. Search for assignments using `search_resources` with query "assignment"
-2. Navigate to the assignment URL from the search results
+1. Search for resources using `search_resources` with a query (e.g., "lecture", "assignment")
+2. Get the `downloadUrl` directly from search results for files
+3. Navigate to the `moduleUrl` to view the resource in Moodle
 
-### Workflow 3: Bulk Document Access
+### Workflow 3: Quick File Access
 
-1. List all your courses using `list_courses`
-2. For each course, use `get_course_documents` to get all downloadable files
-3. Download needed files using `download_file`
+1. Use `search_resources` to find specific files by name
+2. Download files directly using the `downloadUrl` included in the response
+3. No additional API calls needed!
 
 ## Error Handling
 
@@ -193,8 +186,8 @@ Common errors:
 ## Tips
 
 1. **Performance**: `search_resources` queries all enrolled courses, so it may take a while if you're enrolled in many courses
-2. **File Downloads**: Large files will result in large base64 responses. Consider file size before downloading
-3. **Authentication**: The token is automatically refreshed if expired, so you don't need to handle re-authentication
+2. **Direct Downloads**: Download URLs include the authentication token and can be used directly in HTTP clients, browsers, or download tools
+3. **Authentication**: The token is automatically managed and included in download URLs, so you don't need to handle authentication separately
 4. **Module Types**: Common module types include:
    - `resource`: Documents and files
    - `url`: External links
@@ -202,3 +195,4 @@ Common errors:
    - `forum`: Discussion forums
    - `quiz`: Quizzes
    - `folder`: Folders containing multiple files
+5. **File Information**: Both `search_resources` and `get_course_documents` return file metadata (size, MIME type, modification time) along with download URLs

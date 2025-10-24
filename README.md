@@ -106,9 +106,8 @@ See [USAGE.md](USAGE.md) for detailed documentation of all available tools:
 
 1. **list_courses** - List all enrolled courses
 2. **get_course_contents** - Get course sections and modules
-3. **get_course_documents** - Get all downloadable files from a course
-4. **search_resources** - Search for resources by name
-5. **download_file** - Download file content as base64
+3. **get_course_documents** - Get all downloadable files from a course with direct download URLs
+4. **search_resources** - Search for resources by name with direct download URLs included
 
 ## Testing
 

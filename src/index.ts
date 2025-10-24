@@ -60,7 +60,7 @@ const tools: Tool[] = [
   },
   {
     name: 'search_resources',
-    description: 'Search for resources by name across all enrolled courses',
+    description: 'Search for resources by name across all enrolled courses. Returns results with download URLs that can be used directly.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -70,20 +70,6 @@ const tools: Tool[] = [
         },
       },
       required: ['query'],
-    },
-  },
-  {
-    name: 'download_file',
-    description: 'Download a file from Moodle by its URL. Returns the file content as base64.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        fileUrl: {
-          type: 'string',
-          description: 'The URL of the file to download (from module contents)',
-        },
-      },
-      required: ['fileUrl'],
     },
   },
   {
@@ -164,56 +150,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'download_file': {
-        const { fileUrl } = args as { fileUrl: string };
-        const fileBuffer = await moodleClient.downloadFile(fileUrl);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `File downloaded successfully. Size: ${fileBuffer.length} bytes\nBase64 content:\n${fileBuffer.toString('base64')}`,
-            },
-          ],
-        };
-      }
-
       case 'get_course_documents': {
         const { courseId } = args as { courseId: number };
-        const contents = await moodleClient.getCourseContents(courseId);
-
-        // Extract all documents/files
-        const documents: Array<{
-          sectionName: string;
-          moduleName: string;
-          moduleType: string;
-          files: Array<{
-            filename: string;
-            filesize: number;
-            fileurl: string;
-            mimetype?: string;
-            timemodified: number;
-          }>;
-        }> = [];
-
-        for (const section of contents) {
-          for (const module of section.modules) {
-            if (module.contents && module.contents.length > 0) {
-              documents.push({
-                sectionName: section.name,
-                moduleName: module.name,
-                moduleType: module.modname,
-                files: module.contents.map((content) => ({
-                  filename: content.filename,
-                  filesize: content.filesize,
-                  fileurl: content.fileurl,
-                  mimetype: content.mimetype,
-                  timemodified: content.timemodified,
-                })),
-              });
-            }
-          }
-        }
-
+        const documents = await moodleClient.getCourseDocuments(courseId);
         return {
           content: [
             {

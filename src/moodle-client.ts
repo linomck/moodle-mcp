@@ -198,7 +198,15 @@ export class MoodleClient {
     moduleName: string;
     moduleUrl: string;
     type: string;
+    files?: Array<{
+      filename: string;
+      filesize: number;
+      downloadUrl: string;
+      mimetype?: string;
+      timemodified: number;
+    }>;
   }>> {
+    await this.ensureAuthenticated();
     const courses = await this.getUserCourses();
     const results: Array<{
       courseId: number;
@@ -206,6 +214,13 @@ export class MoodleClient {
       moduleName: string;
       moduleUrl: string;
       type: string;
+      files?: Array<{
+        filename: string;
+        filesize: number;
+        downloadUrl: string;
+        mimetype?: string;
+        timemodified: number;
+      }>;
     }> = [];
 
     const searchLower = query.toLowerCase();
@@ -217,12 +232,26 @@ export class MoodleClient {
         for (const section of contents) {
           for (const module of section.modules) {
             if (module.name.toLowerCase().includes(searchLower)) {
+              // Process files and add token to download URLs
+              const files = module.contents?.map(content => {
+                const url = new URL(content.fileurl);
+                url.searchParams.set('token', this.token!);
+                return {
+                  filename: content.filename,
+                  filesize: content.filesize,
+                  downloadUrl: url.toString(),
+                  mimetype: content.mimetype,
+                  timemodified: content.timemodified,
+                };
+              });
+
               results.push({
                 courseId: course.id,
                 courseName: course.fullname,
                 moduleName: module.name,
                 moduleUrl: module.url,
                 type: module.modname,
+                files: files && files.length > 0 ? files : undefined,
               });
             }
           }
@@ -234,5 +263,61 @@ export class MoodleClient {
     }
 
     return results;
+  }
+
+  /**
+   * Get all documents from a course with download URLs
+   */
+  async getCourseDocuments(courseId: number): Promise<Array<{
+    sectionName: string;
+    moduleName: string;
+    moduleType: string;
+    files: Array<{
+      filename: string;
+      filesize: number;
+      downloadUrl: string;
+      mimetype?: string;
+      timemodified: number;
+    }>;
+  }>> {
+    await this.ensureAuthenticated();
+    const contents = await this.getCourseContents(courseId);
+    const documents: Array<{
+      sectionName: string;
+      moduleName: string;
+      moduleType: string;
+      files: Array<{
+        filename: string;
+        filesize: number;
+        downloadUrl: string;
+        mimetype?: string;
+        timemodified: number;
+      }>;
+    }> = [];
+
+    for (const section of contents) {
+      for (const module of section.modules) {
+        if (module.contents && module.contents.length > 0) {
+          documents.push({
+            sectionName: section.name,
+            moduleName: module.name,
+            moduleType: module.modname,
+            files: module.contents.map((content) => {
+              const url = new URL(content.fileurl);
+              url.searchParams.set('token', this.token!);
+              return {
+                filename: content.filename,
+                filesize: content.filesize,
+                downloadUrl: url.toString(),
+                mimetype: content.mimetype,
+                timemodified: content.timemodified,
+              };
+            }),
+          });
+        }
+      }
+    }
+
+    return documents;
   }
 }

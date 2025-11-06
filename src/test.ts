@@ -147,25 +147,21 @@ async function runTests() {
     }
     console.log();
 
-    // Test 6: Download File (if available)
-    if (documents.length > 0 && documents[0].files.length > 0) {
-      const firstFile = documents[0].files[0];
-      // Only test download with small files (< 1MB)
-      if (firstFile.filesize < 1024 * 1024) {
-        console.log(`📝 Test 6: Download File`);
-        console.log(`Downloading: ${firstFile.filename}`);
-        const fileBuffer = await client.downloadFile(firstFile.fileurl);
-        console.log(`✅ File downloaded successfully`);
-        console.log(`   Size: ${fileBuffer.length} bytes`);
-        console.log(`   First 50 chars of base64: ${fileBuffer.toString('base64').substring(0, 50)}...\n`);
-      } else {
-        console.log(`📝 Test 6: Download File`);
-        console.log(`⚠️  Skipping file download test (file too large: ${(firstFile.filesize / 1024 / 1024).toFixed(2)} MB)\n`);
-      }
+    // Test 6: Verify Download URLs in Course Documents
+    console.log(`📝 Test 6: Verify Download URLs`);
+    console.log(`Getting documents with download URLs from: "${testCourse.fullname}"`);
+    const courseDocuments = await client.getCourseDocuments(testCourse.id);
+    console.log(`✅ Found ${courseDocuments.length} modules with files`);
+    if (courseDocuments.length > 0 && courseDocuments[0].files.length > 0) {
+      const firstDoc = courseDocuments[0];
+      const firstFile = firstDoc.files[0];
+      console.log(`   Module: ${firstDoc.moduleName}`);
+      console.log(`   File: ${firstFile.filename}`);
+      console.log(`   Download URL includes token: ${firstFile.downloadUrl.includes('token=') ? 'Yes' : 'No'}`);
     } else {
-      console.log(`📝 Test 6: Download File`);
-      console.log(`⚠️  No files available to test download\n`);
+      console.log(`   No files available`);
     }
+    console.log();
 
     console.log('✅ All tests completed successfully!');
 

@@ -14,7 +14,6 @@ import { MoodleClient } from './moodle-client.js';
  * Provides integration with Moodle LMS through the Model Context Protocol
  */
 
-// Configuration from environment variables
 const MOODLE_URL = process.env.MOODLE_URL;
 const MOODLE_USERNAME = process.env.MOODLE_USERNAME;
 const MOODLE_PASSWORD = process.env.MOODLE_PASSWORD;
@@ -26,7 +25,6 @@ if (!MOODLE_URL || !MOODLE_USERNAME || !MOODLE_PASSWORD) {
   process.exit(1);
 }
 
-// Initialize Moodle client
 const moodleClient = new MoodleClient({
   url: MOODLE_URL,
   username: MOODLE_USERNAME,
@@ -108,24 +106,6 @@ const tools: Tool[] = [
         },
       },
       required: ['courseId'],
-    },
-  },
-  {
-    name: 'get_module_files',
-    description: 'Get detailed file information for a specific module, including authenticated download URLs',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        courseId: {
-          type: 'number',
-          description: 'The ID of the course',
-        },
-        moduleId: {
-          type: 'number',
-          description: 'The ID of the module',
-        },
-      },
-      required: ['courseId', 'moduleId'],
     },
   },
 ];
@@ -211,7 +191,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 limit: maxLimit,
                 count: results.length,
                 files: results,
-                note: 'Use the download_file tool with fileurl to get authenticated download URLs',
               }, null, 2),
             },
           ],
@@ -229,7 +208,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 courseId,
                 documentsCount: documents.length,
                 documents,
-                note: 'Use the download_file tool with fileurl to get authenticated download URLs',
               }, null, 2),
             },
           ],
@@ -253,7 +231,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Start server
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

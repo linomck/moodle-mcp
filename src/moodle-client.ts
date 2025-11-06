@@ -433,4 +433,32 @@ export class MoodleClient {
 
     return documents;
   }
+
+  /**
+   * Get file content from a download URL
+   */
+  async getFileContent(downloadUrl: string): Promise<{
+    content: string;
+    mimeType?: string;
+  }> {
+    try {
+      const response = await this.axios.get(downloadUrl, {
+        responseType: 'arraybuffer',
+      });
+
+      // Convert buffer to base64
+      const content = Buffer.from(response.data).toString('base64');
+      const mimeType = response.headers['content-type'];
+
+      return {
+        content,
+        mimeType,
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to download file: ${error.message}`);
+      }
+      throw error;
+    }
+  }
 }

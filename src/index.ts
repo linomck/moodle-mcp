@@ -5,7 +5,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
   Tool,
+  Resource,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MoodleClient } from './moodle-client.js';
 
@@ -119,6 +122,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -228,6 +232,71 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ],
       isError: true,
     };
+  }
+});
+
+// Handle resource list requests
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  const resources: Resource[] = [];
+
+  try {
+    // Get all courses
+    const courses = await moodleClient.getUserCoursesSimplified();
+
+    // Add resources for each course's files
+    for (const course of courses) {
+      try {
+        const documents = await moodleClient.getCourseDocuments(course.id);
+
+        for (const doc of documents) {
+          for (const file of doc.files) {
+            resources.push({
+              uri: `moodle://file/${encodeURIComponent(file.downloadUrl)}`,
+              name: `${course.fullname} - ${doc.moduleName} - ${file.filename}`,
+              description: `File from ${course.fullname} (${Math.round(file.filesize / 1024)} KB)`,
+              mimeType: file.mimetype,
+            });
+          }
+        }
+      } catch (error) {
+        // Skip courses that fail to load
+        console.error(`Failed to load resources for course ${course.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to list resources:', error);
+  }
+
+  return { resources };
+});
+
+// Handle resource read requests
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const { uri } = request.params;
+
+  if (!uri.startsWith('moodle://file/')) {
+    throw new Error(`Unsupported resource URI: ${uri}`);
+  }
+
+  try {
+    // Extract the download URL from the URI
+    const downloadUrl = decodeURIComponent(uri.replace('moodle://file/', ''));
+
+    // Fetch the file content
+    const fileContent = await moodleClient.getFileContent(downloadUrl);
+
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: fileContent.mimeType,
+          blob: fileContent.content,
+        },
+      ],
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read resource: ${errorMessage}`);
   }
 });
 

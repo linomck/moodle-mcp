@@ -1,95 +1,123 @@
-# Moodle MCP Server
+<div align="center">
 
-A Model Context Protocol (MCP) server that provides integration with Moodle LMS. This server allows AI assistants to interact with Moodle courses, retrieve course contents, download documents, and search for resources.
+# 🎓 Moodle MCP Server
 
-## Features
+**Model Context Protocol integration for Moodle LMS**
 
-- **Authentication**: Secure token-based authentication using Moodle Web Services
-- **List Courses**: Get all courses the user is enrolled in
-- **Course Contents**: Retrieve all sections, modules, and resources from a course
-- **Document Access**: Download files and documents with proper authentication
-- **Search**: Find resources by name across all enrolled courses
-- **Error Handling**: Comprehensive error handling with automatic token refresh
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![MCP](https://img.shields.io/badge/MCP-1.0.4-purple.svg)](https://modelcontextprotocol.io)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-## Prerequisites
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
-- Node.js 18 or higher
-- A Moodle instance with Web Services enabled
-- Valid Moodle credentials with API access
+</div>
 
-## Installation
+---
 
-1. Clone the repository:
+## 📖 Overview
+
+A powerful Model Context Protocol (MCP) server that seamlessly integrates AI assistants with Moodle Learning Management System. Enable your AI assistant to access courses, retrieve educational content, download resources, and search through your learning materials.
+
+> **🔌 Compatible with**: Claude Desktop, and any MCP-compatible AI assistant
+
+## ✨ Features
+
+- 🔐 **Secure Authentication** - Token-based auth using Moodle Web Services
+- 📚 **Course Management** - List and access all enrolled courses
+- 📄 **Content Retrieval** - Get sections, modules, and resources from courses
+- 💾 **Document Access** - Download files and documents with proper authentication
+- 🔍 **Smart Search** - Find resources by name across all enrolled courses
+- 🛡️ **Error Handling** - Comprehensive error handling with automatic token refresh
+- 🚀 **TypeScript** - Fully typed for better developer experience
+
+## 🎯 Use Cases
+
+- **Study Assistant**: Let AI help you navigate course materials
+- **Content Organization**: Search and organize learning resources
+- **Course Overview**: Get quick summaries of course structures
+- **Resource Discovery**: Find specific documents across multiple courses
+- **Learning Analytics**: Analyze course content and structure
+
+## 📋 Prerequisites
+
+- **Node.js** 18 or higher
+- **Moodle Instance** with Web Services enabled
+- **Valid Credentials** with API access to your Moodle instance
+
+## 🚀 Installation
+
+### Quick Start
+
 ```bash
+# Clone the repository
 git clone <repository-url>
 cd moodle-mcp
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
-```
 
-3. Build the project:
-```bash
+# Build the project
 npm run build
 ```
 
-## Configuration
+### Configuration
 
-### Environment Variables
+1. **Create environment file**
 
-Create a `.env` file in the project root (use `.env.example` as template):
+```bash
+cp .env.example .env
+```
+
+2. **Configure your credentials**
 
 ```bash
 MOODLE_URL=https://your-moodle-instance.com
 MOODLE_USERNAME=your_username
 MOODLE_PASSWORD=your_password
-MOODLE_SERVICE=moodle_mobile_app  # Optional, defaults to moodle_mobile_app
+MOODLE_SERVICE=moodle_mobile_app  # Optional
 ```
 
 ### Moodle Web Services Setup
 
 Your Moodle instance must have Web Services enabled. If you're a Moodle administrator:
 
-1. Go to **Site administration > Server > Web services > Overview**
+1. Navigate to **Site administration → Server → Web services → Overview**
 2. Follow the setup wizard to enable web services
-3. Create a service (or use the built-in `moodle_mobile_app` service)
-4. Ensure the following functions are enabled:
+3. Create or use the built-in `moodle_mobile_app` service
+4. Ensure these functions are enabled:
    - `core_webservice_get_site_info`
    - `core_enrol_get_users_courses`
    - `core_course_get_courses`
    - `core_course_get_contents`
 
-## Usage
+## 🎮 Usage
 
 ### Running the Server
 
-The MCP server communicates via stdio and is designed to be used with MCP-compatible clients:
-
 ```bash
+# Production
 node dist/index.js
-```
 
-Or for development:
-
-```bash
+# Development with auto-reload
 npm run dev
 ```
 
 ### Integration with Claude Desktop
 
-Add to your Claude Desktop configuration file:
+Add to your Claude Desktop configuration:
 
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+**Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "moodle": {
       "command": "node",
-      "args": ["/path/to/moodle-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/moodle-mcp/dist/index.js"],
       "env": {
         "MOODLE_URL": "https://your-moodle-instance.com",
         "MOODLE_USERNAME": "your_username",
@@ -102,37 +130,36 @@ Add to your Claude Desktop configuration file:
 
 ### Available Tools
 
-See [USAGE.md](USAGE.md) for detailed documentation of all available tools:
+| Tool | Description |
+|------|-------------|
+| `list_courses` | List all enrolled courses with details |
+| `get_course_contents` | Retrieve complete course structure with sections and modules |
+| `get_course_documents` | Get all downloadable files from a course with direct URLs |
+| `search_resources` | Search for resources by name across all courses |
 
-1. **list_courses** - List all enrolled courses
-2. **get_course_contents** - Get course sections and modules
-3. **get_course_documents** - Get all downloadable files from a course with direct download URLs
-4. **search_resources** - Search for resources by name with direct download URLs included
+> 📚 **Detailed documentation**: See [USAGE.md](USAGE.md) for comprehensive tool documentation
 
-## Testing
-
-You can test the MCP server without connecting to an AI assistant. See [TESTING.md](TESTING.md) for detailed instructions.
+## 🧪 Testing
 
 ### Quick Test
 
 ```bash
-# 1. Create .env file with your Moodle credentials
-cp .env.example .env
-# Edit .env with your credentials
-
-# 2. Run the test suite
+# Run the complete test suite
 npm test
 ```
 
-This will test all functionality including authentication, course listing, content retrieval, search, and file downloads.
+### Testing Options
 
-### Other Testing Methods
+| Method | Description |
+|--------|-------------|
+| **Automated Tests** | `npm test` - Full test suite |
+| **MCP Inspector** | Interactive web-based tool testing |
+| **Standalone Script** | Direct API testing without MCP |
+| **Manual cURL** | Test Moodle API endpoints directly |
 
-- **Standalone Test Script** - Direct API testing without MCP (see TESTING.md)
-- **MCP Inspector** - Interactive web-based testing of MCP tools
-- **Manual cURL** - Test Moodle API endpoints directly
+> 📘 **Full testing guide**: See [TESTING.md](TESTING.md)
 
-## Development
+## 🏗️ Development
 
 ### Project Structure
 
@@ -143,102 +170,129 @@ moodle-mcp/
 │   ├── moodle-client.ts  # Moodle API client
 │   ├── types.ts          # TypeScript type definitions
 │   └── test.ts           # Standalone test script
-├── dist/                 # Compiled JavaScript (generated)
-├── .env.example          # Environment variables template
-├── package.json
-├── tsconfig.json
-├── README.md             # Main documentation
+├── dist/                 # Compiled JavaScript
+├── .env.example          # Environment template
+├── README.md             # This file
 ├── USAGE.md              # Tool usage guide
 └── TESTING.md            # Testing guide
 ```
 
-### Building
+### Commands
 
 ```bash
+# Build the project
 npm run build
-```
 
-### Watch Mode
-
-For development with auto-rebuild:
-
-```bash
+# Watch mode (auto-rebuild)
 npm run watch
+
+# Run tests
+npm test
+
+# Development mode
+npm run dev
 ```
 
-## API Architecture
+## 🔧 API Architecture
 
-### Authentication System
+### Authentication Flow
 
-The server uses Moodle's token-based authentication:
+```
+1. Token Generation → POST /login/token.php
+2. API Calls        → GET/POST /webservice/rest/server.php?wstoken={token}
+3. File Downloads   → GET /pluginfile.php/...?token={token}
+```
 
-1. **Token Generation**: POST to `/login/token.php` with credentials
-2. **API Calls**: GET/POST to `/webservice/rest/server.php` with token
-3. **File Downloads**: Authenticated requests to `/pluginfile.php` with token
+### Moodle Web Services
 
-### Moodle Web Services Used
+- `core_webservice_get_site_info` - User and site information
+- `core_enrol_get_users_courses` - Enrolled courses list
+- `core_course_get_courses` - All available courses
+- `core_course_get_contents` - Course structure and resources
 
-- `core_webservice_get_site_info` - Get user information
-- `core_enrol_get_users_courses` - List enrolled courses
-- `core_course_get_courses` - Get all available courses
-- `core_course_get_contents` - Get course structure and resources
+## 📚 Documentation
 
-## Troubleshooting
+- **[USAGE.md](USAGE.md)** - Comprehensive guide to all available tools
+- **[TESTING.md](TESTING.md)** - Testing instructions and methods
+- **[MCP Documentation](https://modelcontextprotocol.io)** - Learn more about MCP
 
-### Authentication Errors
+## 🐛 Troubleshooting
 
-- Verify your Moodle credentials are correct
-- Ensure Web Services are enabled on your Moodle instance
-- Check that the service name matches your Moodle configuration
+<details>
+<summary><strong>Authentication Errors</strong></summary>
 
-### Permission Errors
+- ✅ Verify credentials are correct in `.env`
+- ✅ Ensure Web Services are enabled in Moodle
+- ✅ Check service name matches your Moodle configuration
+- ✅ Verify user has appropriate API access permissions
 
-- Verify your user has appropriate permissions in Moodle
-- Some resources may be restricted based on enrollment or role
+</details>
 
-### Connection Errors
+<details>
+<summary><strong>Permission Errors</strong></summary>
 
-- Verify the Moodle URL is correct and accessible
-- Check your network connection
-- Ensure your Moodle instance accepts API requests
+- ✅ Verify user has appropriate role permissions in Moodle
+- ✅ Some resources may be restricted based on enrollment
+- ✅ Check course visibility settings
 
-## Security Considerations
+</details>
 
-- Store credentials securely (use environment variables, not hardcoded values)
-- Use HTTPS for Moodle connections in production
-- Regularly rotate passwords and tokens
-- Follow your organization's security policies
+<details>
+<summary><strong>Connection Errors</strong></summary>
 
-## License
+- ✅ Verify Moodle URL is correct and accessible
+- ✅ Check network connection and firewall settings
+- ✅ Ensure Moodle instance accepts API requests
+- ✅ Try accessing Moodle URL directly in browser
 
-MIT
+</details>
 
-## Contributing
+## 🔒 Security
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- 🔐 Store credentials securely using environment variables
+- 🌐 Use HTTPS for Moodle connections in production
+- 🔄 Regularly rotate passwords and tokens
+- 📋 Follow your organization's security policies
+- ⚠️ Never commit `.env` file to version control
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. 🍴 Fork the repository
+2. 🔨 Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. 💾 Commit your changes (`git commit -m 'Add amazing feature'`)
+4. 📤 Push to the branch (`git push origin feature/amazing-feature`)
+5. 🎉 Open a Pull Request
+
+Please ensure your PR:
+- ✅ Includes tests for new features
+- ✅ Updates documentation as needed
+- ✅ Follows existing code style
+- ✅ Passes all tests
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Model Context Protocol SDK](https://github.com/modelcontextprotocol/sdk)
+- Powered by [Moodle LMS](https://moodle.org/)
+- TypeScript & Node.js ecosystem
+
+## 📞 Support
+
+- 📖 [Documentation](USAGE.md)
+- 🐛 [Issue Tracker](../../issues)
+- 💬 [Discussions](../../discussions)
 
 ---
 
-## Technical Analysis & Implementation Notes
+<div align="center">
 
-### Moodle API Endpoints
+**Made with ❤️ for the Moodle and AI community**
 
-1. **REST API**: `/webservice/rest/server.php`
-   - Format: `?wstoken={token}&wsfunction={function}&moodlewsrestformat=json`
+⭐ Star this repo if you find it helpful!
 
-2. **File Downloads**: `/pluginfile.php/{contextid}/{component}/{filearea}/{itemid}/{filename}`
-   - Requires authentication (token parameter)
-
-### Document Access Pattern
-
-- Documents are course resources with unique course module ID (cmid)
-- Files are accessed through module contents
-- Download URLs include authentication tokens
-
-### Implementation Details
-
-- **Language**: TypeScript with Node.js
-- **MCP SDK**: @modelcontextprotocol/sdk v1.0.4
-- **HTTP Client**: Axios for API requests
-- **Transport**: Stdio for MCP communication
-- **Authentication**: Automatic token management with refresh capability
+</div>

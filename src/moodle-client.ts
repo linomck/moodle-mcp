@@ -166,13 +166,6 @@ export class MoodleClient {
   }
 
   /**
-   * Get all available courses
-   */
-  async getAllCourses(): Promise<MoodleCourse[]> {
-    return this.callFunction<MoodleCourse[]>('core_course_get_courses');
-  }
-
-  /**
    * Get course contents (sections, modules, resources)
    */
   async getCourseContents(courseId: number): Promise<MoodleSection[]> {
@@ -294,8 +287,6 @@ export class MoodleClient {
           }
         }
       } catch (error) {
-        // Skip courses we can't access
-        continue;
       }
     }
 
@@ -381,8 +372,6 @@ export class MoodleClient {
           }
         }
       } catch (error) {
-        // Skip courses we can't access
-        continue;
       }
     }
 
